@@ -1,0 +1,354 @@
+using System;
+using System.Threading.Tasks;
+using Microsoft.CognitiveServices.Speech;
+using Microsoft.CognitiveServices.Speech.Audio;
+using Microsoft.CognitiveServices.Speech.Conversation;
+using System.Text;
+using System.Threading;
+using System.IO;
+using Microsoft.Azure.CognitiveServices.Language.TextAnalytics;
+using Microsoft.Azure.CognitiveServices.Language.TextAnalytics.Models;
+using Microsoft.Rest;
+using System.Linq;
+using System.Collections.Generic;
+using System.Net.Http;
+using Microsoft.ML;
+using Microsoft.ML.Data;
+using Newtonsoft.Json.Linq;
+using ParallelDots;
+using System.Net;
+using System.Net.Mail;
+using OpenTextSummarizer;
+using OpenTextSummarizer.Interfaces;
+
+
+
+
+namespace projectAI
+{
+    class Program
+    {
+   
+        
+   
+        
+        public static async Task RecognizeSpeechAsync()
+        {
+            // Creates an instance of a speech config with specified subscription key and service region.
+            // Replace with your own subscription key and service region (e.g., "westus").
+            var config = SpeechConfig.FromSubscription("", "");
+
+            // Creates a speech recognizer.
+            using (var recognizer = new SpeechRecognizer(config))
+            {
+                Console.WriteLine("Say something...");
+
+                // Starts speech recognition, and returns after a single utterance is recognized. The end of a
+                // single utterance is determined by listening for silence at the end or until a maximum of 15
+                // seconds of audio is processed.  The task returns the recognition text as result. 
+                // Note: Since RecognizeOnceAsync() returns only a single utterance, it is suitable only for single
+                // shot recognition like command or query. 
+                // For long-running multi-utterance recognition, use StartContinuousRecognitionAsync() instead.
+
+                string filename = "C:/Users/Guest_test/Documents/code/projectAI/speech.csv";
+                 var result =  await recognizer.RecognizeOnceAsync();
+
+                // Checks result.
+                if (result.Reason == ResultReason.RecognizedSpeech)
+                {
+                    Console.WriteLine($"We recognized: {result.Text}");
+                    if (!File.Exists(filename))
+
+                    {
+
+                        using (StreamWriter writer = new StreamWriter(new FileStream(filename,
+
+                            FileMode.Create, FileAccess.Write)))
+
+                            writer.WriteLine(result.Text);
+
+                        //Console.WriteLine("Text is Written in the file");
+
+                    }
+
+                    else
+
+                    {
+
+                        using (StreamWriter w = File.AppendText(filename))
+
+                        {
+
+                            w.WriteLine(result.Text);
+
+                        }
+
+                    }
+                }
+                else if (result.Reason == ResultReason.NoMatch)
+                {
+                    Console.WriteLine($"NOMATCH: Speech could not be recognized.");
+                }
+                else if (result.Reason == ResultReason.Canceled)
+                {
+                    var cancellation = CancellationDetails.FromResult(result);
+                    Console.WriteLine($"CANCELED: Reason={cancellation.Reason}");
+
+                    if (cancellation.Reason == CancellationReason.Error)
+                    {
+                        Console.WriteLine($"CANCELED: ErrorCode={cancellation.ErrorCode}");
+                        Console.WriteLine($"CANCELED: ErrorDetails={cancellation.ErrorDetails}");
+                        Console.WriteLine($"CANCELED: Did you update the subscription info?");
+                    }
+                }
+            }
+        }
+
+         public static async Task SpeechContinuousRecognitionAsync()
+ {
+     // Creates an instance of a speech config with specified subscription key and service region.
+     // Replace with your own subscription key and service region (e.g., "westus").
+     var config = SpeechConfig.FromSubscription("5e1e97ee631049ebb56d2849e7b823d9", "eastasia");
+
+     // Creates a speech recognizer from microphone.
+     using (var recognizer = new SpeechRecognizer(config))
+     {
+         // Subscribes to events.
+         recognizer.Recognizing += (s, e) => {
+             Console.WriteLine($"RECOGNIZING: Text={e.Result.Text}");
+         };
+
+         recognizer.Recognized += (s, e) => {
+            var result = e.Result;
+             Console.WriteLine($"Reason: {result.Reason.ToString()}");
+             if (result.Reason == ResultReason.RecognizedSpeech)
+             {
+                     Console.WriteLine($"Final result: Text: {result.Text}.");
+                         string filename = "C:/Users/Guest_test/Documents/code/projectAI/newcontinuousspeech3.csv";
+                       if (!File.Exists(filename))
+
+                    {
+
+                        using (StreamWriter writer = new StreamWriter(new FileStream(filename,
+
+                            FileMode.Create, FileAccess.Write)))
+
+                            writer.WriteLine(result.Text);
+
+                        //Console.WriteLine("Text is Written in the file");
+
+                    }
+                    else{
+                          using (StreamWriter w = File.AppendText(filename))
+
+                        {
+
+                            w.WriteLine(result.Text);
+                            TrainModel(result.Text).Wait();
+                        }
+                    }
+                  
+
+             }
+               
+         };
+
+         recognizer.Canceled += (s, e) => {
+             Console.WriteLine($"\n    Recognition Canceled. Reason: {e.Reason.ToString()}, CanceledReason: {e.Reason}");
+         };
+
+         recognizer.SessionStarted += (s, e) => {
+             Console.WriteLine("\n    Session started event.");
+         };
+
+         recognizer.SessionStopped += (s, e) => {
+             Console.WriteLine("\n    Session stopped event.");
+         };
+
+         // Starts continuous recognition. Uses StopContinuousRecognitionAsync() to stop recognition.
+         await recognizer.StartContinuousRecognitionAsync().ConfigureAwait(false);
+
+         do
+         {
+             Console.WriteLine("Press Enter to stop");
+         } while (Console.ReadKey().Key != ConsoleKey.Enter);
+
+         // Stops recognition.
+         await recognizer.StopContinuousRecognitionAsync().ConfigureAwait(false);
+
+        
+
+         
+     }
+ }
+
+ 
+ 
+
+        public static async Task TextAnalysis(TextAnalyticsClient client)
+        {
+            int c = 1;
+             string path = "C:/Users/Guest_test/Documents/code/projectAI/speech.csv";
+
+             String[] allLines = File.ReadAllLines(path);
+             foreach(var line in allLines)
+             {
+                 var inputDocuments = new MultiLanguageBatchInput(
+                     new List<MultiLanguageInput>
+                     {
+                         new MultiLanguageInput("en",c.ToString(),line),
+                     });
+                     c++;
+                     var keyphraseextraction = await client.KeyPhrasesAsync(false,inputDocuments);
+
+                     foreach(var document in keyphraseextraction.Documents)
+                     {
+                         foreach(string keyphrase in document.KeyPhrases)
+                         {
+                             Console.Write("MOM Keyword:: ");
+                             Console.Write($"\t{keyphrase}");
+                             Console.WriteLine();
+                         }
+                     }
+                     Console.WriteLine("*****************************************");
+             }
+             }
+
+              public static async Task TrainModel(string param){
+                 // MLContext mlContext = new MLContext();
+                 //IDataView data = mlContext.Data.LoadFromTextFile<HousingData>("Data/*", separatorChar: ',', hasHeader: false);
+                    paralleldots pd = new paralleldots("");
+                    
+                    JObject category = JObject.Parse(@"{'meeting': ['important', 'note', 'useful','necessary','meeting'], 'technical': ['virtual machine', 'server', 'windows','project','POC'], 'agenda': ['tech talk', 'BSA Paper', 'PSA Portal Discussion','Skype Meeting','Review Meeting']}");
+
+                    string custom_classifier = pd.custom_classifier(param,category);
+                    Console.WriteLine(custom_classifier);
+              }
+
+     static string messagepart =  null;
+
+     public static void Fetchdata()
+    {
+
+        
+
+        
+        using (StreamReader sr = new StreamReader("C:/Users/Guest_test/Documents/code/projectAI/newcontinuousspeech4.csv"))
+        {
+                  string currentLine = null;
+                
+    // currentLine will be null when the StreamReader reaches the end of file
+             while((currentLine = sr.ReadLine()) != null)
+             {
+       // Search, case insensitive, if the currentLine contains the searched keyword
+            if(currentLine.Contains("important") || currentLine.Contains("note it down") || currentLine.Contains("note the important point"))
+             {
+             messagepart = messagepart + currentLine + Environment.NewLine; 
+             
+             
+              Console.WriteLine(messagepart);
+             }
+            }
+
+        }
+     
+    }
+
+ static string summarymessage =  "";
+  private static void SummarizeThis(IContentProvider contentProvider)
+        {
+            var summarizedDocument = OpenTextSummarizer.Summarizer.Summarize(
+                contentProvider,
+                new SummarizerArguments() { Language = "en", MaxSummarySentences = 50 });
+
+            Console.WriteLine("Summarizing content from " + contentProvider.GetType().FullName);
+            Console.WriteLine(" ===== Concepts =============================== ");
+            summarizedDocument.Concepts.ForEach(c => Console.WriteLine(string.Format("\t{0}", c)));
+            Console.WriteLine(" ===== Summary Using NLP =============================== ");
+            summarizedDocument.Sentences.ForEach(s => {
+                summarymessage+=s;
+                });
+                Console.WriteLine(string.Format("{0}", summarymessage));
+         //   Console.ReadKey();
+        
+        }
+
+    public static void sendMail()
+    {
+        string header = "Hello Team, <br/>";
+        string bodymess = "please find the MOM of today's meeting : <br/><br/>";
+        string htmlString = header + bodymess + summarymessage;
+        MailMessage message = new MailMessage();  
+        SmtpClient smtp = new SmtpClient();  
+        message.From = new MailAddress("rajawat.rohit8@gmail.com");  
+        message.To.Add("rajawat.rohit8@gmail.com");  
+  
+        message.Subject = "MOM of Today's Meeting";  
+       // message.IsBodyHtml = true; //to make message body as html  
+        message.Body = htmlString;  
+        message.IsBodyHtml = true;
+        smtp.Port = 587;  
+        smtp.Host = "smtp.gmail.com"; //for gmail host  
+        smtp.EnableSsl = true;  
+        smtp.UseDefaultCredentials = false;  
+         smtp.DeliveryMethod = SmtpDeliveryMethod.Network;  
+        smtp.Credentials = new NetworkCredential("", "");  
+       
+        smtp.Send(message);
+
+    }
+  
+
+  
+        
+
+        private const string subscriptionkey = "";
+        private const string Endpoint = "";
+
+        static void Main(string[] args)
+        {
+
+           // CreateVoiceSignatureByUsingFormData().Wait();
+
+          // ConversationWithPullAudioStreamAsync().Wait();
+           
+          // RecognizeSpeechAsync().Wait();
+
+      //    SpeechContinuousRecognitionAsync().Wait();
+           //Fetchdata();
+         
+          SummarizeThis(new OpenTextSummarizer.FileContentProvider("C:/Users/Guest_test/Documents/code/projectAI/newcontinuousspeech3.csv"));
+              sendMail();
+            var credentials = new ApiKeyServiceClientCredentials(subscriptionkey);
+            var client = new TextAnalyticsClient(credentials)
+            {
+                Endpoint = Endpoint
+            };
+
+            Console.OutputEncoding = Encoding.UTF8;
+         
+            
+           // TextAnalysis(client).Wait();
+            Console.WriteLine("Please press a key to continue.");
+            Console.ReadLine();
+        }
+
+        class ApiKeyServiceClientCredentials : ServiceClientCredentials
+        {
+            private readonly string subscriptionkey;
+
+            public ApiKeyServiceClientCredentials(string subscriptionkey){
+                this.subscriptionkey = subscriptionkey;
+            }
+
+            public override Task ProcessHttpRequestAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            {
+                if(request == null)
+                {
+                    throw new ArgumentNullException("request");
+                }
+                request.Headers.Add("Ocp-Apim-Subscription-Key",this.subscriptionkey);
+                return base.ProcessHttpRequestAsync(request,cancellationToken);
+            }
+        }
+    }
