@@ -50,7 +50,7 @@ namespace projectAI
                 // shot recognition like command or query. 
                 // For long-running multi-utterance recognition, use StartContinuousRecognitionAsync() instead.
 
-                string filename = "C:/Users/Guest_test/Documents/code/projectAI/speech.csv";
+                string filename = "";
                  var result =  await recognizer.RecognizeOnceAsync();
 
                 // Checks result.
@@ -108,7 +108,7 @@ namespace projectAI
  {
      // Creates an instance of a speech config with specified subscription key and service region.
      // Replace with your own subscription key and service region (e.g., "westus").
-     var config = SpeechConfig.FromSubscription("5e1e97ee631049ebb56d2849e7b823d9", "eastasia");
+     var config = SpeechConfig.FromSubscription("", "");
 
      // Creates a speech recognizer from microphone.
      using (var recognizer = new SpeechRecognizer(config))
@@ -124,7 +124,7 @@ namespace projectAI
              if (result.Reason == ResultReason.RecognizedSpeech)
              {
                      Console.WriteLine($"Final result: Text: {result.Text}.");
-                         string filename = "C:/Users/Guest_test/Documents/code/projectAI/newcontinuousspeech3.csv";
+                         string filename = "";
                        if (!File.Exists(filename))
 
                     {
@@ -188,7 +188,7 @@ namespace projectAI
         public static async Task TextAnalysis(TextAnalyticsClient client)
         {
             int c = 1;
-             string path = "C:/Users/Guest_test/Documents/code/projectAI/speech.csv";
+             string path = "";
 
              String[] allLines = File.ReadAllLines(path);
              foreach(var line in allLines)
@@ -219,7 +219,7 @@ namespace projectAI
                  //IDataView data = mlContext.Data.LoadFromTextFile<HousingData>("Data/*", separatorChar: ',', hasHeader: false);
                     paralleldots pd = new paralleldots("");
                     
-                    JObject category = JObject.Parse(@"{'meeting': ['important', 'note', 'useful','necessary','meeting'], 'technical': ['virtual machine', 'server', 'windows','project','POC'], 'agenda': ['tech talk', 'BSA Paper', 'PSA Portal Discussion','Skype Meeting','Review Meeting']}");
+                    JObject category = JObject.Parse(@"{'meeting': ['important', 'note', 'useful','necessary','meeting'], 'technical': ['virtual machine', 'server', 'windows','project','POC'], 'agenda': ['tech talk', 'Paper', 'Discussion','Skype Meeting','Review Meeting']}");
 
                     string custom_classifier = pd.custom_classifier(param,category);
                     Console.WriteLine(custom_classifier);
@@ -233,7 +233,7 @@ namespace projectAI
         
 
         
-        using (StreamReader sr = new StreamReader("C:/Users/Guest_test/Documents/code/projectAI/newcontinuousspeech4.csv"))
+        using (StreamReader sr = new StreamReader(""))
         {
                   string currentLine = null;
                 
@@ -280,8 +280,8 @@ namespace projectAI
         string htmlString = header + bodymess + summarymessage;
         MailMessage message = new MailMessage();  
         SmtpClient smtp = new SmtpClient();  
-        message.From = new MailAddress("rajawat.rohit8@gmail.com");  
-        message.To.Add("rajawat.rohit8@gmail.com");  
+        message.From = new MailAddress("");  
+        message.To.Add("");  
   
         message.Subject = "MOM of Today's Meeting";  
        // message.IsBodyHtml = true; //to make message body as html  
@@ -317,7 +317,7 @@ namespace projectAI
       //    SpeechContinuousRecognitionAsync().Wait();
            //Fetchdata();
          
-          SummarizeThis(new OpenTextSummarizer.FileContentProvider("C:/Users/Guest_test/Documents/code/projectAI/newcontinuousspeech3.csv"));
+          SummarizeThis(new OpenTextSummarizer.FileContentProvider(""));
               sendMail();
             var credentials = new ApiKeyServiceClientCredentials(subscriptionkey);
             var client = new TextAnalyticsClient(credentials)
